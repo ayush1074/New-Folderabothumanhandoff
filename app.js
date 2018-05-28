@@ -1,78 +1,56 @@
-require('dotenv-extended').load();
+import * as express from 'express';
+import * as builder from 'botbuilder';
+import * as handoff from 'botbuilder-handoff';
 
-var builder = require('botbuilder');
-var restify = require('restify');
+//=========================================================
+// Normal Bot Setup
+//=========================================================
+const app = express();
 
-// Setup Restify Server
-var server = restify.createServer();
-server.listen(process.env.port || process.env.PORT || 3978, function () {
-    console.log('%s listening to %s', server.name, server.url);
+// Setup Express Server
+app.listen(process.env.port || process.env.PORT || 3978, '::', () => {
+    console.log('Server Up');
 });
 
-// Create chat bot and listen to messages
-var connector = new builder.ChatConnector({
+// Create chat bot
+const connector = new builder.ChatConnector({
     appId: process.env.MICROSOFT_APP_ID,
     appPassword: process.env.MICROSOFT_APP_PASSWORD
 });
-server.post('/api/messages', connector.listen());
 
-var DialogLabels = [     'Pricing',
-     'Product Info',
-     'Others'
-];
+app.post('/api/messages', connector.listen());
 
-// Bot Storage: Here we register the state storage for your bot. 
-// Default store: volatile in-memory store - Only for prototyping!
-// We provide adapters for Azure Table, CosmosDb, SQL Azure, or you can implement your own!
-// For samples and documentation, see: https://github.com/Microsoft/BotBuilder-Azure
-var inMemoryStorage = new builder.MemoryBotStorage();
-
-var bot = new builder.UniversalBot(connector, [
-    function (session) {
-        // prompt for search option
-        builder.Prompts.choice(
-            session,
-            'Are you looking for a flight or a hotel?',
-            DialogLabels,
-            { listStyle: 3 },{
-                maxRetries: 3,
-                retryPrompt: 'Not a valid option'
-            });
-    },
-    function (session, result) {
-        if (!result.response) {
-            // exhausted attemps and no selection, start over
-            session.send('Ooops! Too many attemps :( But don\'t worry, I\'m handling that exception and you can try again!');
-            return session.endDialog();
-        }
-
-        // on error, start over
-        session.on('error', function (err) {
-            session.send('Failed with message: %s', err.message);
-            session.endDialog();
-        });
-
-        // continue on proper dialog
-        var selection = result.response.entity;
-        switch (selection) {
-            case DialogLabels[1]:
-                return session.beginDialog('flights');
-            case DialogLabels[0]:
-                return session.beginDialog('hotels');
-            case DialogLabels[2]:
-                return session.beginDialog('support');
-        }
+const bot = new builder.UniversalBot(connector, [
+    function (session, args, next) {
+        session.endConversation('Echo ' + session.message.text);
     }
-]).set('storage', inMemoryStorage); // Register in memory storage
+]);
 
-bot.dialog('flights', require('./flights'));
-bot.dialog('hotels', require('./hotels'));
-bot.dialog('support', require('./support'))
-    .triggerAction({
-        matches: [/help/i, /support/i, /problem/i]
-    });
+//=========================================================
+// Hand Off Setup
+//=========================================================
+// Replace this function with custom login/verification for agents
+const isAgent = (session: builder.Session) => session.message.user.name.startsWith("Agent");
 
-// log any bot errors into the console
-bot.on('error', function (e) {
-    console.log('And error ocurred', e);
+/**
+    bot: builder.UniversalBot
+    app: express ( e.g. const app = express(); )
+    isAgent: function to determine when agent is talking to the bot
+    options: { }
+**/
+handoff.setup(bot, app, isAgent, {
+    mongodbProvider: process.env.MONGODB_PROVIDER,
+    directlineSecret: process.env.MICROSOFT_DIRECTLINE_SECRET,
+    textAnalyticsKey: process.env.CG_SENTIMENT_KEY,
+    appInsightsInstrumentationKey: process.env.APPINSIGHTS_INSTRUMENTATIONKEY,
+    retainData: process.env.RETAIN_DATA,
+    customerStartHandoffCommand: process.env.CUSTOMER_START_HANDOFF_COMMAND
+});
+
+//triggerHandoff manually
+bot.dialog('/connectToHuman', (session)=>{
+    session.send("Hold on, buddy! Connecting you to the next available agent!");
+    handoff.triggerHandoff(session);
+}).triggerAction({
+    matches:  /^agent/i,
 });
