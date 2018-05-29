@@ -28,7 +28,7 @@ logon_form.onsubmit = e => {
     logon_form.style.display = 'none';
 
     var user = {
-        id: user_id.value + Math.floor(Math.random() * 1000) + 1  ,
+        id: user_id.value,
         name: user_id.value
     }
 
@@ -38,3 +38,4 @@ logon_form.onsubmit = e => {
         bot: bot,
     }, document.getElementById("BotChatGoesHere"));
 }
+
