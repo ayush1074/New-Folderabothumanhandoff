@@ -15,6 +15,7 @@
   "dependencies": {
     "botbuilder": "^3.7.0",
     "botbuilder-handoff": "^0.2.0",
+    "core-util-is": "file:node_modules/core-util-is",
     "express": "^4.14.0",
     "request": "file:node_modules/request",
     "ts-node": "^6.0.5",
