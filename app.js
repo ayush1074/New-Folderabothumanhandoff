@@ -6,12 +6,18 @@ var Store = require('./store');
 var customer = "";
 var type;
 var type1;
+var contact;
 var com;
+var ani;
+var name;
+var email;
+var vip;
 const fs = require('fs');
 var rawdata = fs.readFileSync('product.json');
 var pro_JSON = JSON.parse(rawdata);
 var pro = pro_JSON.products;
 // Setup Restify Server
+var email;
 var server = restify.createServer();
 server.listen(process.env.port || process.env.PORT || 3978, function () {
     console.log('%s listening to %s', server.name, server.url);
@@ -167,21 +173,86 @@ bot.dialog("adobe_exist", [function (session)
 },
     function (session, result, next)
     {
-        var vip = result.response;
+        vip = result.response;
         var pat = new RegExp("[a-z0-9]{19}");
         var s = pat.test(vip);
         console.log(s);
         console.log(vip.length);
         if (s && vip.length == 20) {
-            builder.Prompts.time(session, "Please enter your product anniversary date in dd-month-year format ");
-            session.replaceDialog('hotels');
-        }
+            builder.Prompts.text(session, "Please enter your product anniversary date in mm/dd/year format ");
+         }
         else
         {
             session.send("Invalid Input : Please Enter Your Valid 20 Character Alphanumeric VIP Number ")
             session.replaceDialog('adobe_exist', { isReprompt: true });
         }
+    }, function (session, result, next)
+    {
+        ani = result.response;
+        console.log(ani);
+        var d = new Date();
+        var day = d.getDate();
+        var month = d.getMonth();
+        var date1 = new Date(ani);  
+        console.log(date1);
+        var ani_day = date1.getDate();
+        var ani_month = date1.getMonth();
+        var diff = Math.abs(ani_month - month);
+        if (month <= 1) {
+            var diff1 = Math.abs(ani_day - day);
+            if (day > 30) {
+                session.send("You will have to renew your product for 12 months");
+            }
+            else {
+                session.send("You can buy a subscription for 1 Month");
+            }
+
+        }
+        else
+        {
+            session.send("You can buy a subscription for " + diff + " months");  
+            next();
+        }
+        
+    },
+    function (session, result, next)
+    {
+        builder.Prompts.text(session, "Please enter your E-mail Id");
+        
+    },
+    function (session, result, next)
+    {
+        email = result.response;
+             builder.Prompts.choice(
+                session,
+                'Do you want to provide us with your contact number . It will help us  improve our services ',
+                'Yes|No',
+                { listStyle: 3 }, {
+                    maxRetries: 3,
+                    retryPrompt: 'Not a valid option'
+                });
+        
+        },
+    function (session, result, next)
+    {
+        var ans = result.response.entity;
+        if (ans == "Yes") {
+            builder.Prompts.number(session, "Please enter your comtact number")
+        }
+        else
+        {
+            session.beginDialog("adobe_new");
+        }
+    },
+    function (sesison, result, next)
+    {
+        if (result.response.entity)
+        {
+            contact = result.response.entity;
+            session.beginDialog("adobe_new");
+        }
     }
+
 ]);
 bot.dialog('adobe_new', [
     function (session)
@@ -194,43 +265,51 @@ bot.dialog('adobe_new', [
                 maxRetries: 3,
                 retryPrompt: 'Not a valid option'
             });
-    },
-    function (session, result, next)
+    }, function (session, result, next)
     {
-        type = result.response.entity;
-        builder.Prompts.choice(
-            session,
-            'What type of ' + type +' adobe product are you looking for  ?',
-            "Cloud Product|Perpetual Product",
-            { listStyle: 3 }, {
-                maxRetries: 3,
-                retryPrompt: 'Not a valid option'
-            });
+        type= result.response.entity;
+        if (ty == "academic") {
+            builder.Prompts.choice(
+                session,
+                'What type of adobe product are you looking for  ?',
+                "Device Based|User Based",
+                { listStyle: 3 }, {
+                    maxRetries: 3,
+                    retryPrompt: 'Not a valid option'
+                });
+        }
+        else {
+            builder.Prompts.choice(
+                session,
+                'What type of ' + type + ' adobe product are you looking for  ?',
+                "Cloud Product|Perpetual Product",
+                { listStyle: 3 }, {
+                    maxRetries: 3,
+                    retryPrompt: 'Not a valid option'
+                });}
     },
     function (session, result, next)
     {
          type1 = result.response.entity;
-        if (type1 == "Perpetual Product")
-        {
-            if (type == "Commercial")
-            {
                 var message = new builder.Message()
                     .attachmentLayout(builder.AttachmentLayout.carousel)
-                    .attachments(pro.map(hotelAsAttachment)); 
+                    .attachments(pro.map(hotelAsAttachment));
                 session.send(message);
-            }
-        }
+         
+      
     }
  
 ]);
 function hotelAsAttachment(pro) {
-    return new builder.HeroCard()
-        .title(pro.name)
-        .images([new builder.CardImage().url(pro.image)])
-        .buttons([
-            new builder.CardAction()
-                .title('More details')
-                .type('openUrl')
-                .value(pro.URI)
-        ]);
+    if (pro.com == com && pro.type == type && pro.type1 == type1) {
+        return new builder.HeroCard()
+            .title(pro.name)
+            .images([new builder.CardImage().url(pro.image)])
+            .buttons([
+                new builder.CardAction()
+                    .title('More details')
+                    .type('openUrl')
+                    .value(pro.URI)
+            ]);
+    }
 }
