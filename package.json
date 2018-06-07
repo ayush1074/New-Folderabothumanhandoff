@@ -23,6 +23,7 @@
   "dependencies": {
     "bluebird": "^3.5.1",
     "botbuilder": "^3.13.1",
+    "botbuilder-instrumentation": "^1.1.18",
     "dotenv-extended": "^1.0.4",
     "express": "^4.16.3",
     "request": "file:node_modules/request",
